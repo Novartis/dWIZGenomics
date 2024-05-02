@@ -21,7 +21,7 @@ directory `dWIZGenomics/inst/zenodoData`
 3. Download the bigwig files from the [GSE247096](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE247096) entry into the directory
 `dWIZGenomics/inst/bigwigs/GSE247096`.
 
-4. Load the package via `devtools::load_all()` to avoid copying of large 
+4. Load the package via `devtools::load_all()`. Alternatively, you could also install the package but you would copy some large 
 files (bigwigs) into your `.libPaths()`
 
 5. Run the code in the vignettes.
