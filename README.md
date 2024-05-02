@@ -15,7 +15,7 @@ the package by following the next steps:
 git clone <URL to repo>
 ```
 
-2. Download the data files available (in the zenodo repository)[https://doi.org/10.5281/zenodo.11085537] into the
+2. Download the data files available [in the zenodo repository](https://doi.org/10.5281/zenodo.11085537) into the
 directory `dWIZGenomics/inst/zenodoData`
 
 3. Download the data files available in the GEO entry <XX> into the directory
