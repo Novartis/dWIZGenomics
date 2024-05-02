@@ -67,7 +67,7 @@ pVolDay4 <- resultsWIZ %>%
     scale_colour_manual(values=c(yes="#FF000050", no="#00000050")) +
     coord_cartesian(xlim=c(-3.5, 3.5), ylim=c(0, 45)) +
     theme(legend.position="none") +
-    labs( x=expression(log[2]*"("~frac("OOV300",DMSO)~")"), y=expression(-log[10]~"("*p*"-value)")) +
+    labs( x=expression(log[2]*"("~frac("dWIZ-2",DMSO)~")"), y=expression(-log[10]~"("*p*"-value)")) +
     geom_vline( xintercept=0, col="darkgray", alpha=0.8, linetype="dashed" ) +
     scale_x_continuous(limits = c(-3.5, 3.5)) +
     theme(plot.margin = margin(0.1,0.3,0.1,0.1, "cm"))
@@ -154,7 +154,7 @@ resultsK9me2 %>%
                numberOfPeaks2=forcats::fct_reorder( numberOfPeaks2, log2FoldChange, median, .desc=TRUE ) ) %>%
     ggplot( aes( numberOfPeaks2, log2FoldChange ) ) +
     geom_boxplot(outlier.shape=NA) +
-    labs( y=expression("H3K9me2"~log[2]~"("~frac("OOV300",DMSO)~")"), x="# of WIZ peaks" ) +
+    labs( y=expression("H3K9me2"~log[2]~"("~frac("dWIZ-2",DMSO)~")"), x="# of WIZ peaks" ) +
     coord_cartesian( ylim=c(-1.25, 0.5) ) +
     geom_hline(yintercept=0, col="black", linetype="dashed", alpha=0.3) +
     theme_cowplot() +
@@ -217,7 +217,7 @@ diffK9Data %>%
     theme( axis.text.x=element_text( angle=25, hjust=1, size=10 ) )  +
     geom_hline( yintercept=0, col="darkred", linetype="dashed" ) +
     labs(x="H3K9ac peak", 
-         y=expression(H3K9me2~log[2]~"("~frac("OOV300",DMSO)~")")) +
+         y=expression(H3K9me2~log[2]~"("~frac("dWIZ-2",DMSO)~")")) +
     coord_cartesian(ylim=c(-1.5, 1.5))
 
 ```
