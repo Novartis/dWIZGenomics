@@ -12,13 +12,13 @@ the package by following the next steps:
 1. Clone the repository
 
 ```
-git clone <URL to repo>
+git clone https://github.com/Novartis/dWIZGenomics.git
 ```
 
 2. Download the data files available [in the zenodo repository](https://doi.org/10.5281/zenodo.11085537) into the
 directory `dWIZGenomics/inst/zenodoData`
 
-3. Download the data files available in the GEO entry <XX> into the directory
+3. Download the bigwig files from the [GSE247096](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE247096) entry into the directory
 `dWIZGenomics/inst/bigwigs/GSE247096`.
 
 4. Load the package via `devtools::load_all()` to avoid copying of large 
