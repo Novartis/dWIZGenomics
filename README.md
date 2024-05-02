@@ -4,14 +4,6 @@ The goal of dWIZGenomics is to provide the code used to reproduce the
 figures containing the genomic data for the publication "A molecular glue 
 degrader of the WIZ transcription factor for fetal hemoglobin induction"
 
-## Installation
-
-You can install the development version of dWIZGenomics like so:
-
-``` r
-devtools::install_package("Novartis/dWIZGenomics")
-```
-
 ## Instructions
 
 The figures can be reproduced by running  the code in the vignettes. Install
