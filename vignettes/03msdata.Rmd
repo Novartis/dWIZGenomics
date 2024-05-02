@@ -1,0 +1,95 @@
+---
+title: "MS data"
+author: "Alejandro Reyes"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+
+```{r, fig.height=3, fig.width=5}
+
+devtools::load_all()
+
+msData <- 
+  read.delim( 
+    system.file("zenodoData/dwiz2_ms_quantifications.txt", 
+                package="dWIZGenomics") )
+
+msDataStats <- msData %>%
+    tidyr::pivot_longer(cols=!dplyr::matches("Modification")) %>%
+    as.data.frame() %>%
+    dplyr::filter( grepl("K9_me2", Modification), grepl("Dxr|Oxr", name) ) %>%
+    dplyr::mutate( condition=ifelse( grepl("Dxr", name), "DMSO", "dWIZ-2" ) ) %>%
+    dplyr::group_by( condition )  %>%
+    dplyr::summarize( mn=mean(value), sds=sd(value) )
+
+msDataPoints <- msData %>%
+    tidyr::pivot_longer(cols=!dplyr::matches("Modification")) %>%
+    as.data.frame() %>%
+    dplyr::filter( grepl("K9_me2", Modification), grepl("Dxr|Oxr", name) ) %>%
+    dplyr::mutate( condition=ifelse( grepl("Dxr", name), "DMSO", "dWIZ-2" ) )
+
+
+msDataSub <- msData[,grepl("Modification|Dxr|Oxr", colnames(msData))]
+
+
+##png("figures/barplot_h3modifications.png", height=3, width=5, unit="in", res=300)
+msDataSub %>%
+    tidyr::pivot_longer( cols=!dplyr::matches("Modification"), names_to="samp", values_to="percent" ) %>%
+    dplyr::filter( grepl("K9K14_un|K9_me1|K9_me2|K9_me3|K9_ac|K14_ac|K9_ac_K14_ac", Modification ) ) %>%
+    dplyr::mutate( condition=ifelse(grepl("Dxr", samp), "DMSO", "dWIZ-2") ) %>%
+    dplyr::mutate(
+               Modification=factor( Modification,
+                                   levels=c("K9_ac_K14_ac", "K9_ac", "K9_me1", "K9_me2", "K9_me3", "K14_ac", "K9K14_un"),
+                                   labels=c("K9ac & K14ac", "K9ac", "K9me1", "K9me2", "K9me3", "K14ac", "unmodified K9 & K14"))) %>%
+    dplyr::group_by( Modification, condition ) %>%
+    dplyr::summarize( mean=mean(percent), sds=sd(percent) ) %>%
+    ggplot( aes( Modification, mean, fill=condition ) ) +
+    geom_bar(stat="identity", position=position_dodge()) +
+    geom_errorbar(aes(ymin=mean-sds, ymax=mean+sds), width=.4,
+                  position=position_dodge(.9)) +
+    theme_cowplot() +
+    theme(axis.text.x=element_text(angle=45, hjust=1)) +
+    labs( x="Peptide", y="% of peptide", fill="" ) +
+    scale_fill_manual( values=c( DMSO="#A3ADB6", `dWIZ-2`="#85C1E9" ) ) +
+    scale_color_manual( values=c( DMSO="#A3ADB6", `dWIZ-2`="#85CBE9" ) )
+##dev.off()
+
+```
+
+```{r, fig.height=2.6, fig.width=2.6}
+
+msDataStats$mn[which(msDataStats$condition == "DMSO")] - msDataStats$mn[which(msDataStats$condition == "dWIZ-2")]
+
+maxRel <- mean(msDataPoints$value[msDataPoints$condition == "DMSO"])
+
+##png("figures/boxplot_msk9me2_bycondition.png", height=2.6, width=2.6, unit="in", res=300)
+msDataPoints %>%
+    ggplot( aes( condition, value ) ) +
+    geom_jitter(width=0.28, height=0, alpha=0.4) +
+    theme_cowplot() +
+    labs(x="", y="% of H3K9me2") +
+    stat_compare_means(
+        label.y=38, comparisons=list(c("DMSO", "dWIZ-2")),
+        aes(label = paste0("p = ", after_stat(p.format)))) +
+    coord_cartesian(ylim=c(0, 40)) +
+    scale_y_continuous(
+        name="% of H3K9me2 peptides",
+        sec.axis=sec_axis(~100*./maxRel, name="Relative H3K9me2", breaks=seq(0, 100, 20))) +
+    theme(
+        axis.line.y.right = element_line(color = "#d6604d"), 
+        axis.ticks.y.right = element_line(color = "#d6604d"),
+        axis.text.y.right= element_text(color="#d6604d"),
+        axis.title.y.right=element_text(color="#d6604d"))
+## dev.off()
+
+```
+
+# R session information
+
+```{r}
+sessionInfo()
+```

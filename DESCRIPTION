@@ -1,0 +1,24 @@
+Package: dWIZGenomics
+Type: Package
+Title: What the Package Does (Title Case)
+Version: 0.1.0
+Authors@R: 
+  c(person(given = "Alejandro",
+           family = "Reyes",
+           role = c("aut", "cre"),
+           email = "alejandro.reyes.ds@gmail.com",
+           comment = c(ORCID = "0000-0001-8717-6612")))
+Maintainer:
+  c(person(given = "Alejandro",
+           family = "Reyes",
+           role = c("aut", "cre"),
+           email = "alejandro.reyes.ds@gmail.com",
+           comment = c(ORCID = "0000-0001-8717-6612")))
+Description: The goal of dWIZGenomics is to provide the code used to reproduce the
+  figures containing the genomic data for the publication "A molecular glue 
+  degrader of the WIZ transcription factor for fetal hemoglobin induction".
+License: GPL (>= 3)
+Encoding: UTF-8
+Imports: AnnotationHub, biovizBase, cowplot, ggbio, ggExtra, ggplot2, ggpubr, ggrepel, magrittr, org.Hs.eg.db, rtracklayer, scales
+LazyData: true
+RoxygenNote: 7.3.1

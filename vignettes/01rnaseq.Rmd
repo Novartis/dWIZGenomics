@@ -1,0 +1,216 @@
+---
+title: "Erythroblast transcriptomes upon dWIZ-2 treatment"
+author: "Alejandro Reyes"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{Erythroblast transcriptomes upon dWIZ-2 treatment}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+abstract: >
+  This document contains the documented code that was used to
+  analyse the transcriptomes of erythroblasts treated with dWIZ-2.
+---
+  
+# RNA-seq t0 and t7
+
+```{r, fig.height=2.8, fig.width=2.8}
+
+devtools::load_all()
+rna_dwiz2_t7 <- 
+  read.delim(
+    system.file("zenodoData/rnadiff_dwiz2_t7.tsv", package="dWIZGenomics"))
+colnames(rna_dwiz2_t7) <- gsub("dwiz2_rna_t7_diff_", "", colnames(rna_dwiz2_t7))
+
+plotRNAVolcano( rna_dwiz2_t7 )
+  
+```
+
+```{r, fig.height=2.8, fig.width=2.8}
+
+rna_dwiz2_t0 <- 
+  read.delim(
+    system.file("zenodoData/rnadiff_dwiz2_t0.tsv", package="dWIZGenomics"))
+colnames(rna_dwiz2_t0) <- gsub("dwiz2_rna_t0_diff_", "", colnames(rna_dwiz2_t0))
+
+plotRNAVolcano( rna_dwiz2_t0 )
+  
+```
+
+## Figure 5J
+
+```{r}
+
+rna_wizko_t7 <- 
+  read.delim(
+    system.file("zenodoData/rnadiff_wizko_t7.tsv", package="dWIZGenomics"))
+
+plotDat2 <- rna_dwiz2_t7 %>%
+  dplyr::left_join(rna_wizko_t7) %>%
+  dplyr::mutate(
+    padj=p.adjust(pvalue, method="BH" ),
+    wizko_t7_diff_padj=p.adjust( wizko_t7_diff_pvalue, method="BH" ),
+    sign=ifelse( padj < 0.1 & abs(log2FoldChange) > 1, "yes", "no" )
+  ) %>%
+  dplyr::filter( baseMean > 20 ) %>%
+  dplyr::arrange( sign ) %>%
+  dplyr::mutate(
+    lab=ifelse(SYMBOL %in% c("HBG1", "HBG2", "HBB", "HBD"), SYMBOL, NA))
+
+plotDat2 %>%
+    ggplot( aes( log2FoldChange, wizko_t7_diff_log2FoldChange, col=sign, label=lab ) ) +
+    geom_point( size=0.8 ) +
+    scale_color_manual(values=c(no="#D3D3D390", yes="#52525250")) +
+    geom_hline(yintercept=0, color="black", linetype="dashed", alpha=0.3) +
+    geom_vline(xintercept=0, color="black", linetype="dashed", alpha=0.3) +
+    coord_fixed(ratio=1, xlim=c(-4.5, 4.5), ylim=c(-4.5, 4.5)) +
+    theme_cowplot(font_family="Helvetica") +
+    theme(legend.position="none") +
+    geom_text_repel(data=plotDat2[!is.na(plotDat2$lab),], col="#ef3b2c",
+                    nudge_x=c(2, -2, 2, -2), nudge_y=c(1, -2, 2, -2),
+                    max.overlaps = Inf) +
+    geom_point( data=plotDat2[!is.na(plotDat2$lab),], size=0.8, color="#ef3b2c") +
+    labs(x=expression(log[2]~"("~frac("dWIZ-2", DMSO)~")"), y=expression(log[2]~"("~frac("WIZ KO", "control")~")"))
+
+
+```
+
+## Figure 5K
+
+```{r}
+
+rna_unc_t7 <- 
+  read.delim(
+    system.file("zenodoData/rnadiff_unc_t7.tsv", package="dWIZGenomics"))
+
+plotDat2 <- rna_dwiz2_t7 %>%
+  dplyr::left_join(rna_unc_t7) %>%
+  dplyr::mutate(
+    padj=p.adjust(pvalue, method="BH" ),
+    unc_rna_t7_diff_padj=p.adjust( unc_rna_t7_diff_pvalue, method="BH" ),
+    sign=ifelse( padj < 0.1 & abs(log2FoldChange) > 1, "yes", "no" )
+  ) %>%
+  dplyr::filter( baseMean > 20 ) %>%
+  dplyr::arrange( sign ) %>%
+  dplyr::mutate(
+    lab=ifelse(SYMBOL %in% c("HBG1", "HBG2", "HBB", "HBD"), SYMBOL, NA))
+
+plotDat2 %>%
+    ggplot( aes( log2FoldChange, unc_rna_t7_diff_log2FoldChange, col=sign, label=lab ) ) +
+    geom_point( size=0.8 ) +
+    scale_color_manual(values=c(no="#D3D3D390", yes="#52525250")) +
+    geom_hline(yintercept=0, color="black", linetype="dashed", alpha=0.3) +
+    geom_vline(xintercept=0, color="black", linetype="dashed", alpha=0.3) +
+    coord_fixed(ratio=1, xlim=c(-4.5, 4.5), ylim=c(-4.5, 4.5)) +
+    theme_cowplot(font_family="Helvetica") +
+    theme(legend.position="none") +
+    geom_text_repel(data=plotDat2[!is.na(plotDat2$lab),], col="#ef3b2c",
+                    nudge_x=c(2, -2, 2, -2), nudge_y=c(2, -2, 2, -2),
+                    max.overlaps = Inf) +
+    geom_point( data=plotDat2[!is.na(plotDat2$lab),], size=0.8, color="#ef3b2c") +
+    labs(x=expression(log[2]~"("~frac("dWIZ-2", DMSO)~")"), y=expression(log[2]~"("~frac(UNC0642, DMSO)~")"))
+
+
+```
+# Figure S11L
+
+```{r, fig.width=2.7, fig.height=3.2}
+
+ah <- AnnotationHub()
+ahDb <- query(ah, pattern = c("Homo sapiens", "EnsDb", 111))
+ensdb <- ahDb[["AH116291"]]
+gns <- genes(ensdb)
+
+txByGene <- unlist(transcriptsBy(ensdb, "gene"))
+txByGene <- data.frame( geneID=names(txByGene), txID=txByGene$tx_name )
+
+proteinCodingGenes <- gns$gene_id[gns$gene_biotype == "protein_coding"]
+canonicalTranscripts <- gns$canonical_transcript
+
+txByGene <- txByGene[txByGene$txID %in% canonicalTranscripts &
+                     txByGene$geneID %in% proteinCodingGenes,]
+
+allPromoters <- promoters(ensdb, downstream=2000)
+allPromoters <- allPromoters[names(allPromoters) %in% txByGene$txID]
+allPromoters <- keepStandardChromosomes( allPromoters, pruning.mode="coarse" )
+seqlevels(allPromoters) <- paste0("chr", seqlevels(allPromoters))
+
+resultsK9me2 <- 
+  read.delim( 
+    system.file("zenodoData/k9me2diff_dwiz2_t4.tsv", 
+                package="dWIZGenomics") )
+
+ovl <- findOverlaps(GRanges(resultsK9me2$genomicCoordinates), allPromoters)
+
+k9me2Diff <-
+    data.frame(
+        k9me2Diff=resultsK9me2$log2FoldChange[queryHits( ovl )],
+        ENSEMBL=allPromoters$gene_id[subjectHits(ovl)]) %>%
+    dplyr::group_by( ENSEMBL ) %>%
+    dplyr::summarize( k9me2Diff=mean(k9me2Diff) )
+
+rna_dwiz2_t7 <- 
+  read.delim(
+    system.file("zenodoData/rnadiff_dwiz2_t7.tsv", package="dWIZGenomics"))
+
+colnames(rna_dwiz2_t7) <- gsub("dwiz2_rna_t7_diff_", "", colnames(rna_dwiz2_t7))
+
+rna_dwiz2_t7 <- rna_dwiz2_t7 %>%
+  dplyr::mutate( diffClass=
+                   dplyr::case_when(
+                     log2FoldChange > 1 & padj < 0.1 ~ "up",
+                     log2FoldChange < -1 & padj < 0.1 ~ "down",
+                     TRUE ~ "no change") )
+
+rna_dwiz2_t7 %>%
+    dplyr::left_join( k9me2Diff ) %>%
+    as.data.frame() %>%
+    dplyr::filter( baseMean > 20 ) %>%
+    ggplot( aes( diffClass, k9me2Diff ) ) +
+    geom_boxplot( outlier.shape=NA ) +
+    theme_cowplot() +
+    theme(axis.text.x=element_text(angle=30, hjust=1)) +
+    coord_cartesian(ylim=c(-1.5, 1.5)) +
+    geom_hline( yintercept=0, col="darkred", alpha=0.5, linetype="dashed" ) +
+    labs(x="Differential expression", y=expression("H3K9me2"~log[2]~"("~frac("dWIZ-2", DMSO)~")"))
+
+```
+
+# Figure 5G
+
+```{r, fig.height=3.1, fig.width=3.1,}
+
+plotDat <- rna_dwiz2_t7 %>%
+  dplyr::left_join( k9me2Diff ) %>%
+  dplyr::mutate(
+    padj=p.adjust(pvalue, method="BH"),
+    lab=ifelse(SYMBOL %in% c("HBG1", "HBG2", "HBB", "HBD"), SYMBOL, NA),
+    cl=ifelse( padj < 0.1 & abs(log2FoldChange) > 1, "yes", "no") )
+plotDat <- plotDat[order(plotDat$cl),]
+
+plotDat %>%
+  dplyr::filter( baseMean > 20 ) %>%
+  ggplot( aes( k9me2Diff, log2FoldChange, label=lab, col=cl ) ) +  
+  geom_point( size=0.8 ) +
+  geom_hline(yintercept=0, color="black", linetype="dashed", alpha=0.3) +
+  geom_vline(xintercept=0, color="black", linetype="dashed", alpha=0.3) +
+  theme_cowplot(font_family="Helvetica") +
+  scale_color_manual(values=c(no="#D3D3D390", yes="#52525250")) +
+  theme(legend.position="none") +
+  coord_cartesian(x=c(-3, 3), ylim=c(-4, 4)) +
+  geom_text_repel(data=plotDat[!is.na(plotDat$lab),], ##box.padding = 1.3,
+                  nudge_x=-1.3, nudge_y=c(1, -1, 1, -1),
+                  max.overlaps = Inf, col="#ef3b2c") +
+  geom_point( data=plotDat[!is.na(plotDat$lab),], size=0.8, color="#ef3b2c") +
+  coord_flip(ylim=c(-3, 3), xlim=c(-2.5, 2.5)) +
+  labs(y=expression("RNA"~log[2]~"("~frac("dWIZ-2", DMSO)~")"), 
+       x=expression("H3K9me2"~log[2]~"("~frac("dWIZ-2", DMSO)~")"))
+
+
+```
+
+
+# R session information
+
+```{r}
+sessionInfo()
+```

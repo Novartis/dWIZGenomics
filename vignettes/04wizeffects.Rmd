@@ -1,0 +1,307 @@
+---
+title: "Chromatin effects of dWIZ-2 treatment"
+author: "Alejandro Reyes"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# Figure S11B
+
+```{r}
+
+devtools::load_all()
+
+resultsWIZ <- 
+  read.delim( 
+    system.file("zenodoData/wizdiff_dwiz2.tsv", 
+                package="dWIZGenomics") )
+
+pVolDay2 <- resultsWIZ %>%
+    dplyr::filter( baseMean > 10, grepl("2day", contrastName) ) %>%
+    dplyr::mutate(
+               padj=ifelse( is.na(padj), 1, padj),
+               rs=ifelse( padj < 0.1, "yes", "no") ) %>%
+    ggplot( aes( log2FoldChange, -log10(pvalue), col=rs, fill=rs ) ) +
+    geom_point( size=0.5 ) +
+    theme_cowplot() + 
+    scale_fill_manual(values=c(yes="#FF000050", no="#00000050")) +
+    scale_colour_manual(values=c(yes="#FF000050", no="#00000050")) +
+    coord_cartesian(xlim=c(-3.5, 3.5), ylim=c(0, 45)) +
+    theme(legend.position="none") +
+    labs( x=expression(log[2]*"("~frac("dWIZ-2",DMSO)~")"), y=expression(-log[10]~"("*p*"-value)")) +
+    geom_vline( xintercept=0, col="darkgray", alpha=0.8, linetype="dashed" ) +
+    scale_x_continuous(limits = c(-3.5, 3.5)) +
+    theme(plot.margin = margin(0.1,0.3,0.1,0.1, "cm"))
+
+meanLine <- mean(pVolDay2$data$log2FoldChange)
+pVolDay2 <- pVolDay2 + geom_vline( xintercept=meanLine, col="#2166ac", linetype="dashed", alpha=0.8 )
+
+pvolDay2Hist <- resultsWIZ %>%
+    dplyr::filter( baseMean > 10, grepl("2day", contrastName) ) %>%
+    dplyr::mutate(
+               padj=ifelse( is.na(padj), 1, padj),
+               rs=ifelse( padj < 0.1, "yes", "no") ) %>%
+    ggplot( aes( log2FoldChange ) ) +
+    geom_histogram(aes(y = after_stat(count / sum(count))), fill=NA, color="black") +
+    scale_y_continuous(labels = scales::percent) +
+    theme_cowplot() + 
+    coord_cartesian(xlim=c(-3.5, 3.5)) +
+    labs( y="% of peaks" ) +
+    geom_vline( xintercept=0, col="darkgray", alpha=0.8, linetype="dashed" ) +
+    geom_vline( xintercept=meanLine, col="#2166ac", linetype="dashed", alpha=0.8 ) +
+    theme(axis.text.x=element_blank(), ##axis.ticks.x=element_blank(),
+          axis.title.x=element_blank(), plot.margin = margin(0.1,0.3,0,0.1, "cm"))
+
+pVolDay4 <- resultsWIZ %>%
+    dplyr::filter( baseMean > 10, grepl("4day", contrastName) ) %>%
+    dplyr::mutate(
+               padj=ifelse( is.na(padj), 1, padj),
+               rs=ifelse( padj < 0.1, "yes", "no") ) %>%
+    ggplot( aes( log2FoldChange, -log10(pvalue), col=rs, fill=rs ) ) +
+    geom_point( size=0.5 ) +
+    theme_cowplot() + 
+    scale_fill_manual(values=c(yes="#FF000050", no="#00000050")) +
+    scale_colour_manual(values=c(yes="#FF000050", no="#00000050")) +
+    coord_cartesian(xlim=c(-3.5, 3.5), ylim=c(0, 45)) +
+    theme(legend.position="none") +
+    labs( x=expression(log[2]*"("~frac("OOV300",DMSO)~")"), y=expression(-log[10]~"("*p*"-value)")) +
+    geom_vline( xintercept=0, col="darkgray", alpha=0.8, linetype="dashed" ) +
+    scale_x_continuous(limits = c(-3.5, 3.5)) +
+    theme(plot.margin = margin(0.1,0.3,0.1,0.1, "cm"))
+
+meanLine <- mean(pVolDay4$data$log2FoldChange)
+pVolDay4 <- pVolDay4 + geom_vline( xintercept=meanLine, col="#2166ac", linetype="dashed", alpha=0.8 )
+
+pvolDay4Hist <- resultsWIZ %>%
+    dplyr::filter( baseMean > 10, grepl("4day", contrastName) ) %>%
+    dplyr::mutate(
+               padj=ifelse( is.na(padj), 1, padj),
+               rs=ifelse( padj < 0.1, "yes", "no") ) %>%
+    ggplot( aes( log2FoldChange ) ) +
+    geom_histogram(aes(y = after_stat(count / sum(count))), fill=NA, color="black") +
+    scale_y_continuous(labels = scales::percent) +
+    theme_cowplot() + 
+    coord_cartesian(xlim=c(-3.5, 3.5)) +
+    labs( y="% of peaks" ) +
+    geom_vline( xintercept=0, col="darkgray", alpha=0.8, linetype="dashed" ) +
+    geom_vline( xintercept=meanLine, col="#2166ac", linetype="dashed", alpha=0.8 ) +
+    theme(axis.text.x=element_blank(), ##axis.ticks.x=element_blank(),
+          axis.title.x=element_blank(), plot.margin = margin(0.1,0.3,0,0.1, "cm"))
+
+
+
+##png("figureX1_volcano_wiz_pp_all.png", height=4, width=5.5, unit="in", res=300)
+ggarrange( 
+    pvolDay2Hist + ggtitle("Day 2"), pvolDay4Hist + ggtitle("Day 4"),
+    pVolDay2, pVolDay4, ncol=2, nrow=2, 
+  align="v", heights=c(1, 2, 1, 2) )
+##dev.off()
+
+```
+
+
+```{r, fig.height=2.6, fig.width=2.8}
+
+resultsK9me2 <- 
+  read.delim( 
+    system.file("zenodoData/k9me2diff_dwiz2_t4.tsv", 
+                package="dWIZGenomics") )
+
+resultsK9me2$padj <- p.adjust( resultsK9me2$pvalue, method="BH" )
+1-(2^mean(resultsK9me2$log2FoldChange))
+
+pVolK9me2 <- resultsK9me2 %>%
+    dplyr::filter( baseMean > 20 ) %>%
+    dplyr::mutate(
+               padj=ifelse( is.na(padj), 1, padj),
+               rs=ifelse( padj < 0.1, "yes", "no") ) %>%
+    ggplot( aes( log2FoldChange, -log10(pvalue), col=rs, fill=rs ) ) +
+    geom_point( size=0.5 ) +
+    theme_cowplot( ) + 
+    scale_fill_manual(values=c(yes="#FF000050", no="#00000050")) +
+    scale_colour_manual(values=c(yes="#FF000050", no="#00000050")) +
+    coord_cartesian(xlim=c(-1.8, 1.8), ylim=c(0, 18)) +
+    theme(legend.position="none") +
+    labs( x=expression("H3K9me2"~log[2]*"("*frac("dWIZ-2",DMSO)*")"), 
+          y=expression(-log[10]~"("*p*"-value)") ) +
+    geom_vline( xintercept=0, col="darkgray", alpha=0.3, linetype="dashed" ) +
+    scale_x_continuous(limits = c(-1.8, 1.8))
+
+##png("figureX2_volcano_h3k9me2.png", height=2.6, width=2.8, unit="in", res=300)
+pVolK9me2
+##dev.off()
+
+
+```
+
+
+```{r, fig.height=2.8, fig.width=2.8}
+
+resultsK9me2$numberOfPeaks <- countOverlaps(
+  GRanges(resultsK9me2$genomicCoordinates), 
+  GRanges(unique(resultsWIZ$genomicCoordinates) ))
+
+qt <- quantile( resultsK9me2$baseMean, 0.5 )
+## png("figureX5_boxplot_h3k9me2_oov_bywiz.png", height=2.8, width=2.8, unit="in", res=300)
+resultsK9me2 %>%
+    dplyr::filter( baseMean > qt ) %>%
+    dplyr::mutate(
+               numberOfPeaks2=as.character( numberOfPeaks ),
+               numberOfPeaks2=ifelse( numberOfPeaks >= 3, ">=3", numberOfPeaks2 ),
+               numberOfPeaks2=forcats::fct_reorder( numberOfPeaks2, log2FoldChange, median, .desc=TRUE ) ) %>%
+    ggplot( aes( numberOfPeaks2, log2FoldChange ) ) +
+    geom_boxplot(outlier.shape=NA) +
+    labs( y=expression("H3K9me2"~log[2]~"("~frac("OOV300",DMSO)~")"), x="# of WIZ peaks" ) +
+    coord_cartesian( ylim=c(-1.25, 0.5) ) +
+    geom_hline(yintercept=0, col="black", linetype="dashed", alpha=0.3) +
+    theme_cowplot() +
+    stat_compare_means(comparisons=list(c(">=3", "0")), label.y = c(0.2))
+##dev.off()
+
+```
+
+# Figure S11J
+
+```{r, fig.height=3, fig.width=3}
+
+resultsK9ac <- 
+  read.delim( 
+    system.file("zenodoData/k9acdiff_dwiz2_t4.tsv", 
+                package="dWIZGenomics") )
+
+##png("figureX3_volcano_h3k9ac.png", height=3, width=3, unit="in", res=300)
+resultsK9ac %>%
+  as.data.frame() %>%
+  ##dplyr::filter( baseMean > 20 ) %>%
+  ggplot( aes( log2FoldChange, -log10(pvalue), col=padj < 0.1 ) ) +
+  geom_point(alpha=0.6, size=0.8) +
+  scale_color_manual(values=c(`TRUE`="red", `FALSE`="black")) +
+  theme_cowplot() +
+  theme(legend.position="none") +
+  coord_cartesian(x=c(-3, 3), y=c(0, 15)) +
+  labs(x=expression(H3K9ac~log[2]~"("~frac("dWIZ-2", DMSO)~")"), 
+       y=expression(-log[10]~"(p-value)"))
+##dev.off()
+
+```
+
+# Figure S11K
+
+```{r, fig.height=3.2, fig.width=2.1}
+
+ovl <- findOverlaps( 
+  GRanges(resultsK9me2$genomicCoordinates),
+  GRanges(resultsK9ac$genomicCoordinates) )
+
+idxUp <- which( resultsK9ac$padj < 0.1 & resultsK9ac$log2FoldChange > 0 )
+idxDown <- which( resultsK9ac$padj < 0.1 & resultsK9ac$log2FoldChange < 0 )
+
+diffK9Data <- data.frame(
+    k9me2Diff=resultsK9me2$log2FoldChange[queryHits(ovl)],
+    k9acDiff=resultsK9ac$log2FoldChange[subjectHits(ovl)],
+    idx=subjectHits(ovl) ) %>%
+    dplyr::group_by( idx ) %>%
+    dplyr::summarize( k9me2Diff=mean(k9me2Diff), k9acDiff=mean(k9acDiff) ) %>%
+    dplyr::mutate( class=dplyr::case_when(
+                                    idx %in% idxDown ~ "down",
+                                    idx %in% idxUp ~ "up",
+                                    TRUE ~ "no change") )
+
+diffK9Data %>%
+    ggplot( aes( class, k9me2Diff ) ) +
+    geom_boxplot(outlier.shape=NA) +
+    theme_cowplot() +
+    theme( axis.text.x=element_text( angle=25, hjust=1, size=10 ) )  +
+    geom_hline( yintercept=0, col="darkred", linetype="dashed" ) +
+    labs(x="H3K9ac peak", 
+         y=expression(H3K9me2~log[2]~"("~frac("OOV300",DMSO)~")")) +
+    coord_cartesian(ylim=c(-1.5, 1.5))
+
+```
+
+# Figure S11I
+
+```{r, fig.height=3.6, fig.width=3.6}
+
+resultsK9me2All <- 
+  read.delim( 
+    system.file("zenodoData/k9me2diff_all_t4.tsv", 
+                package="dWIZGenomics") )
+
+resultsK9me2All %>%
+    dplyr::filter( baseMean > 50 ) %>%
+    dplyr::mutate(
+               cat=dplyr::case_when(
+                              dwiz2_qval < 0.05 & dwiz2_lfc < 0 ~ "dWIZ-2",
+                              TRUE ~ "other"
+                          ) ) %>%
+    ggplot( aes( dwiz2_lfc, g9a_lfc, col=cat) ) +
+    geom_point(alpha=0.1) +
+    theme_cowplot() +
+    geom_hline(yintercept=0, col="darkred", alpha=0.8, linetype="dashed") +
+    geom_vline(xintercept=0, col="darkred", alpha=0.8, linetype="dashed") +
+    scale_color_manual(values=c(DMSO="#D3D3D390", `dWIZ-2`="#52525250")) +
+    labs(x=expression( "H3K9me2"~log[2]~"("*frac("dWIZ-2", "DMSO")*")"),
+         y=expression( "H3K9me2"~log[2]~"("*frac("UNC0642", "DMSO")*")")) +
+    theme(legend.position="none") +
+  coord_fixed()
+
+```
+
+# Figure S11E
+
+
+```{r, fig.height=3.6, fig.width=3.6}
+
+resultsK9me2All %>%
+    dplyr::filter( baseMean > 50 ) %>%
+    dplyr::mutate(
+               cat=dplyr::case_when(
+                              dwiz2_qval < 0.05 & dwiz2_lfc < 0 ~ "dWIZ-2",
+                              TRUE ~ "other"
+                          ) ) %>%
+    ggplot( aes( dwiz2_lfc, dwiz1_lfc, col=cat) ) +                                                                                                                                                                                    
+    geom_point(alpha=0.1) +
+    theme_cowplot() +
+    geom_hline(yintercept=0, col="darkred", alpha=0.8, linetype="dashed") +
+    geom_vline(xintercept=0, col="darkred", alpha=0.8, linetype="dashed") +
+    scale_color_manual(values=c(DMSO="#D3D3D390", `dWIZ-2`="#52525250")) +
+    labs(x=expression( "H3K9me2"~log[2]~"("*frac("dWIZ-2", "DMSO")*")"),
+         y=expression( "H3K9me2"~log[2]~"("*frac("dWIZ-1", "DMSO")*")")) +
+    theme(legend.position="none") +
+    coord_fixed(ratio=1, xlim=c(-1.7, 1.7), ylim=c(-1.7, 1.7))
+
+
+```
+# Figure S11F
+
+```{r}
+
+resultsK9me2All %>%
+    dplyr::filter( baseMean > 50 ) %>%
+    dplyr::mutate(
+               cat=dplyr::case_when(
+                              dwiz2_qval < 0.05 & dwiz2_lfc < 0 ~ "dWIZ-2",
+                              TRUE ~ "other"
+                          ) ) %>%
+    ggplot( aes( dwiz2_lfc, dwiz1_lfc, col=cat) ) +                                                                                                                                                                                    
+    geom_point(alpha=0.1) +
+    theme_cowplot() +
+    geom_hline(yintercept=0, col="darkred", alpha=0.8, linetype="dashed") +
+    geom_vline(xintercept=0, col="darkred", alpha=0.8, linetype="dashed") +
+    scale_color_manual(values=c(DMSO="#D3D3D390", `dWIZ-2`="#52525250")) +
+    labs(x=expression( "H3K9me2"~log[2]~"("*frac("dWIZ-2", "DMSO")*")"),
+         y=expression( "H3K9me2"~log[2]~"("*frac("dWIZ-1", "DMSO")*")")) +
+    theme(legend.position="none") +
+    coord_fixed(ratio=1, xlim=c(-1.7, 1.7), ylim=c(-1.7, 1.7))
+
+```
+
+# R session information
+
+```{r}
+sessionInfo()
+```

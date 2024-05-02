@@ -1,0 +1,341 @@
+---
+title: "WIZ binding characteristics"
+author: "Alejandro Reyes"
+output: html_document
+vignette: >
+  %\VignetteIndexEntry{WIZ binding characteristics}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# Preparation of peak files
+
+```{r}
+
+devtools::load_all()
+
+wizPeaks <- import(system.file("zenodoData/wizpeaks.bed", package="dWIZGenomics"))
+ctcfPeaks <- import(system.file("zenodoData/ctcfpeaks.bed", package="dWIZGenomics"))
+h3k9acPeaks <- import(system.file("zenodoData/h3k9acpeaks.bed", package="dWIZGenomics"))
+strand(wizPeaks) <- "*"
+strand(ctcfPeaks) <- "*"
+strand(h3k9acPeaks) <- "*"
+
+
+ah <- AnnotationHub()
+ahDb <- query(ah, pattern = c("Homo sapiens", "EnsDb", 111))
+ensdb <- ahDb[["AH116291"]]
+gns <- genes(ensdb)
+
+txByGene <- unlist(transcriptsBy(ensdb, "gene"))
+txByGene <- data.frame( geneID=names(txByGene), txID=txByGene$tx_name )
+
+proteinCodingGenes <- gns$gene_id[gns$gene_biotype == "protein_coding"]
+canonicalTranscripts <- gns$canonical_transcript
+
+txByGene <- txByGene[txByGene$txID %in% canonicalTranscripts &
+                     txByGene$geneID %in% proteinCodingGenes,]
+
+allPromoters <- promoters(ensdb, downstream=2000)
+allPromoters <- allPromoters[names(allPromoters) %in% txByGene$txID]
+allPromoters <- keepStandardChromosomes( allPromoters, pruning.mode="coarse" )
+
+txByGene <- txByGene %>% dplyr::rename( tx_name=txID )
+
+mcols(allPromoters) <- mcols(allPromoters) %>%
+    as.data.frame %>%
+    dplyr::left_join( txByGene ) %>%
+    as("DataFrame")
+seqlevels(allPromoters) <- paste0("chr", seqlevels(allPromoters))
+
+```
+
+# Figure 5A
+
+```{r, fig.height=1.1, fig.width=2}
+
+mcols( wizPeaks )$simple_annotation_my <- NA
+mcols( wizPeaks )$simple_annotation_my[countOverlaps( wizPeaks, ctcfPeaks ) > 0] <- "CTCF"
+mcols( wizPeaks )$overlapsWithK9ac <- countOverlaps( wizPeaks, h3k9acPeaks ) > 0
+mcols( wizPeaks )$simple_annotation_my[countOverlaps( wizPeaks, allPromoters ) > 0] <- "Promoters"
+mcols( wizPeaks )$simple_annotation_my[mcols(wizPeaks)$overlapsWithK9ac & is.na(wizPeaks$simple_annotation_my)] <- "Enhancers"
+gns2 <- gns
+seqlevels(gns2) <- paste0("chr", seqlevels(gns2))
+gns2 <- gns2[gns2$gene_biotype == "protein_coding"]
+
+wizPeaks$simple_annotation_my[countOverlaps( wizPeaks, gns2 ) > 0 & is.na(mcols( wizPeaks )$simple_annotation_my)] <- "Gene body"
+wizPeaks$simple_annotation_my[is.na(mcols(wizPeaks)$simple_annotation_my)] <- "Intergenic"
+overlapSummary <- as.data.frame(table(wizPeaks$simple_annotation_my))
+overlapSummary %>%
+    dplyr::mutate( Freq=100*Freq/sum(Freq) ) %>%
+    dplyr::mutate( Var1=forcats::fct_reorder( Var1, Freq, mean, .desc=FALSE ) ) %>%
+    ggplot( aes( Var1, Freq ) ) +
+    geom_bar(stat="identity") +
+    theme_cowplot(font_size=8, font_family="Helvetica") +
+    labs(x="", y="% of WIZ peaks") +
+    coord_flip()
+
+```
+
+# Figure 5B
+
+```{r, fig.height=1.3, fig.width=2,}
+
+enhancers <- subsetByOverlaps( h3k9acPeaks, allPromoters, invert=TRUE )
+
+ovlDat2 <- rbind(
+    data.frame( 
+      var="Enhancers", 
+      wizCov=length(subsetByOverlaps( enhancers, wizPeaks, minoverlap=1 )), 
+      totNum=length(enhancers) ),
+    data.frame( 
+      var="CTCF", 
+      wizCov=length(subsetByOverlaps( ctcfPeaks, wizPeaks, minoverlap=1 )), 
+      totNum=length(ctcfPeaks) ),
+    data.frame( 
+      var="Promoters", 
+      wizCov=length(subsetByOverlaps( allPromoters, wizPeaks, minoverlap=1 )), 
+      totNum=length(allPromoters) ) )
+
+ovlDat2$wizNeg <- ovlDat2$totNum-ovlDat2$wizCov
+
+ovlDat2$var <- factor( ovlDat2$var, levels=rev(c("CTCF", "Promoters", "Enhancers") ))
+
+## pdf("figure1B.pdf", height=1.3, width=2, bg="transparent")
+ovlDat2 %>%
+    tidyr::pivot_longer( cols=c("wizCov", "wizNeg"), names_to="wizCovered", values_to="numb" ) %>%
+    dplyr::mutate( totNum=NULL, wizCovered=ifelse( grepl("wizCov", wizCovered), "WIZ +", "WIZ -") ) %>%
+    ggplot( aes( var, numb/1000, fill=wizCovered ) ) +
+    geom_bar(stat="identity", color="#85C1E9" ) +
+    theme_cowplot(font_size=8, font_family="Helvetica") +
+    theme( legend.position="top" ) +
+    labs( x="", y="# of elements (x 1000)", fill="" ) +
+    coord_flip() +
+    scale_fill_manual( values=c(`WIZ +`="#85C1E960", `WIZ -`="#FFFFFF" ) )
+## dev.off()
+
+
+```
+
+# Figure 5C
+
+```{r, fig.height=1.2, fig.width=1.1}
+
+compartmentGR <- rtracklayer::import(system.file("zenodoData/compartment.bed", package="dWIZGenomics") )
+mcols(compartmentGR)$eigenVector <- mcols(compartmentGR)$score
+compartmentGR$eigenVector[abs(compartmentGR$eigenVector) < 0.5] <- NA
+compartmentGR$compartment <- ifelse( compartmentGR$eigenVector > 0, "A", "B" )
+seqlevelsStyle(compartmentGR) <- "UCSC"
+
+ovl <- findOverlaps( wizPeaks, compartmentGR )
+ovl <- ovl[!duplicated(queryHits(ovl))]
+
+mcols(wizPeaks)$compartment <- NA
+mcols(wizPeaks)$compartment[queryHits(ovl)] <- mcols(compartmentGR)$compartment[subjectHits(ovl)]
+
+##pdf("figure1C_comp.pdf",  height=1.2, width=1.1, bg="transparent" )
+as.data.frame(prop.table(table( wizPeaks$compartment )))  %>%
+    ggplot( aes( Var1, Freq*100 ) ) +
+    geom_bar(stat="identity") +
+    labs(x="Compartment", y="% of WIZ peaks") +
+    theme_cowplot(font_size=8, font_family="Helvetica")
+##dev.off()
+
+```
+
+# Figure 5E
+
+```{r}
+
+filesGSE <- list.files(
+  system.file("bigwigs/GSE247096", package="dWIZGenomics"), 
+  full.names=TRUE, pattern="bw")
+
+filesAE <- list.files(
+  system.file("bigwigs/ETAB13890", package="dWIZGenomics"), 
+  full.names=TRUE, pattern="bw")
+
+filesGSE <- data.frame(
+  sample_alias=gsub(".bw", "", basename(filesGSE)),
+  bigwigfile=filesGSE)
+
+filesAE <- data.frame(
+  sample_alias=gsub(".bw", "", basename(filesAE)),
+  bigwigfile=filesAE)
+
+hbgLocus <- GRanges("chr11:5200872-5296511")
+
+covGSEHbF <- importAndAverage( filesGSE, hbgLocus, smoothIter=2 )
+
+```
+
+## load annotations
+
+```{r}
+
+ah <- AnnotationHub()
+ahDb <- query(ah, pattern = c("Homo sapiens", "EnsDb", 111))
+ensdb <- ahDb[["AH116291"]]
+
+gns <- genes(ensdb)
+symbols <- c("HBG1", "HBG2", "HBD", "HBB", "HBE1", "BGLT3")
+
+canonicalTranscripts <-
+    mcols(gns)[mcols(gns)$symbol %in% symbols & mcols(gns)$gene_biotype %in% c("protein_coding", "lncRNA"),c("canonical_transcript", "symbol", "gene_id")]
+
+rng <- range(transcripts(ensdb)[canonicalTranscripts$canonical_transcript,])
+
+crunchedAnnotations <- crunch( ensdb, which=rng )
+crunchedAnnotations <- crunchedAnnotations[crunchedAnnotations$tx_id %in% canonicalTranscripts$canonical_transcript,]
+colnames(values(crunchedAnnotations))[4] <- "model"
+crunchedAnnotations <- split(crunchedAnnotations, mcols(crunchedAnnotations)$gene_name)
+seqlevels(crunchedAnnotations) <- "chr11"
+```
+
+## annotation tracks
+
+```{r}
+
+lcr <- GRanges( "chr11:5274473-5292836" )
+threehs <- GRanges("chr11:5203440-5206797")
+
+threehs <- range(subsetByOverlaps( wizPeaks, threehs ))
+
+lcr <- range(subsetByOverlaps( wizPeaks, lcr ))
+lcr <- resize(lcr, width(lcr), fix="center")
+
+lcr$tx_id <- "LCR"
+lcr$gene_name <- "LCR"
+lcr$gene_id <- "LCR"
+lcr$model <- "utr"
+threehs$tx_id <- "3'HS"
+threehs$gene_name <- "3'HS"
+threehs$gene_id <- "3'HS"
+threehs$model <- "utr"
+
+crunchedAnnotations <- c(
+    crunchedAnnotations,
+    GRangesList(LCR=lcr), GRangesList(`3'HS`=threehs))
+
+geneTracks <- ggbio::autoplot( crunchedAnnotations, aes(type=model)  ) +
+    scale_x_reverse( limits=c(end(hbgLocus), start(hbgLocus)), oob=scales::squish, expand = c(0, 0)) +
+    coord_cartesian(clip = "off") +
+    theme_cowplot( )
+
+wizPeaksSub <- subsetByOverlaps(wizPeaks, hbgLocus)
+
+wizPeaks <- ggbio::autoplot(wizPeaksSub, fill="black" )+
+    scale_x_reverse( limits=c(end(hbgLocus), start(hbgLocus)), expand = c(0, 0)) +
+    theme_cowplot( )
+
+
+```
+
+
+```{r, fig.height=12, fig.width=9}
+
+tm <- theme(
+    axis.text.x=element_blank(),
+    plot.margin = unit(c(0.3,0.2,0,0.2), "lines"),
+    axis.title.y.left=element_text(angle=0, size=12, hjust=0, vjust=0.5) )
+
+covGSEHbF$replicate_group <- gsub("CUTNRUN-", "", covGSEHbF$replicate_group)
+
+forLegend <- covGSEHbF %>%
+  dplyr::filter(grepl("WIZ", replicate_group)) %>%
+  dplyr::mutate( replicate_group=gsub("_t4|_t2", "", replicate_group) ) %>%
+  tidyr::separate( replicate_group, into=c("target", "condition"), sep="_") %>%
+  ggplot( aes( start, end, col=condition ) ) +
+  geom_point() +
+  scale_color_manual(values=c(DMSO="#85929E", `OOV300`="#85C1E9")) +
+  theme_cowplot() +
+  theme(legend.position="top", legend.direction="horizontal") +
+  guides(color = guide_legend(override.aes=list(shape = 15, size=10))) +
+  labs(color="")
+
+forLegend <- get_legend(forLegend)
+
+mainPlot <- plot_grid(
+    NULL,
+    plotCovFromDF( covGSEHbF, "CTCF_DMSO_t4", hbgLocus, ylim=c(0, 163), cl="#85929E" ) + tm + ylab("CTCF"),
+    plotCovFromDF( covGSEHbF, "WIZ_t2_DMSO", hbgLocus, ylim=c(0, 30), cl="#85929E" ) + tm + ylab("WIZ D2"),
+    plotCovFromDF( covGSEHbF, "WIZ_t2_dWIZ-2", hbgLocus, ylim=c(0, 30), cl="#85C1E9" ) + tm + ylab("WIZ D2"),
+    plotCovFromDF( covGSEHbF, "WIZ_t4_DMSO", hbgLocus, ylim=c(0, 30), cl="#85929E" ) + tm + ylab("WIZ D4"),
+    plotCovFromDF( covGSEHbF, "WIZ_t4_dWIZ-2", hbgLocus, ylim=c(0, 30), cl="#85C1E9" ) + tm + ylab("WIZ D4"),
+    plotCovFromDF( covGSEHbF, "H3K9ac_t4_DMSO", hbgLocus, ylim=c(0, 151), cl="#85929E" ) + tm + ylab("H3K9ac"),
+    plotCovFromDF( covGSEHbF, "H3K9ac_t4_dWIZ-2", hbgLocus, ylim=c(0, 151), cl="#85C1E9" ) + tm + ylab("H3K9ac"),
+    plotCovFromDF( covGSEHbF, "H3K9me2_t4_DMSO", hbgLocus, ylim=c(0, 20), cl="#85929E" ) + tm + ylab("H3K9me2"),
+    plotCovFromDF( covGSEHbF, "H3K9me2_t4_dWIZ-2", hbgLocus, ylim=c(0, 20), cl="#85C1E9" ) + tm + ylab("H3K9me2"),
+    plotCovFromDF( covGSEHbF, "IgG_t4_DMSO", hbgLocus, ylim=c(0, 20), cl="#85929E" ) + tm + ylab("IgG"),
+    plotCovFromDF( covGSEHbF, "IgG_t4_dWIZ-2", hbgLocus, ylim=c(0, 20), cl="#85C1E9" ) + tm + ylab("IgG"),
+    wizPeaks@ggplot + ylab("WIZ binding") +
+    theme( axis.text.x=element_blank(), axis.line=element_blank(),
+          axis.ticks=element_blank(), 
+          axis.title.y.left=element_text(angle=0, size=10, hjust=1, vjust=0.5), 
+          plot.margin = unit(c(0,0.2,0,0.2), "lines")),
+    geneTracks@ggplot + 
+      theme( axis.line.y=element_blank(), 
+             plot.margin = unit(c(-0.5,0.2,0,0.2), "lines")) + 
+      labs(x="Genome coordinates (chr11)"),
+    rel_heights=c(0.5, rep(1.5,11), 0.85, 1.2),
+    ncol=1, align="v" )
+
+mainPlot
+
+```
+
+# Figure S11A
+
+```{r, fig.height=12, fig.width=9}
+
+covData2 <- read.delim(
+  system.file("zenodoData/figureS11AData_public.tsv", package="dWIZGenomics"))
+
+tm <- theme(
+    axis.text.x=element_blank(),
+    plot.margin = unit(c(0.3,0.2,0,0.2), "lines"),
+    axis.text.y=element_blank(),
+    axis.line.y=element_blank(),
+    axis.ticks=element_blank(),
+    axis.title.y.left=element_text(angle=0, size=13, hjust=1, vjust=0.5, face="bold"))
+
+mainPlot <- plot_grid(
+    plotCovFromDF( covData2, "GSE43625_GATA1", hbgLocus, yexpand=FALSE ) + tm + ylab("GATA1"),
+    plotCovFromDF( covData2, "GSE43625_KLF1", hbgLocus, yexpand=FALSE ) + tm + ylab("KLF1"),
+    plotCovFromDF( covData2, "GSE43625_NFE2", hbgLocus, yexpand=FALSE ) + tm + ylab("NFE2"),
+    plotCovFromDF( covData2, "GSE52924_GATA1", hbgLocus, yexpand=FALSE ) + tm + ylab("GATA1"),
+    plotCovFromDF( covData2, "GSE52924_TAL1", hbgLocus, yexpand=FALSE ) + tm + ylab("TAL1"),
+    plotCovFromDF( covData2, "GSE150530_NFYA_CUTRUN_CD34_shCtr", hbgLocus, yexpand=FALSE ) + tm + ylab("NFYA (adult)"),
+    plotCovFromDF( covData2, "GSE150530_NFYA_CUTRUN_Cord_CD34", hbgLocus, yexpand=FALSE ) + tm + ylab("NFYA (coord)"),
+    plotCovFromDF( covData2, "GATA1_day7_30min", hbgLocus, yexpand=FALSE ) + tm + ylab("GATA1"),
+    plotCovFromDF( covData2, "BCL11A_day3_60min", hbgLocus, ylim=c(0, 1000), yexpand=FALSE ) + tm + ylab("BCL11A (day 3)"),
+    plotCovFromDF( covData2, "BCL11A_day5_60min", hbgLocus, ylim=c(0, 1000), yexpand=FALSE ) + tm + ylab("BCL11A (day 5)"),
+    plotCovFromDF( covData2, "BCL11A_day7_60min", hbgLocus, ylim=c(0, 1000), yexpand=FALSE ) + tm + ylab("BCL11A (day 7)"),    
+    plotCovFromDF( covData2, "CTCF_DMSO", hbgLocus, yexpand=FALSE ) + tm + ylab("CTCF"),
+    plotCovFromDF( covGSEHbF, "WIZ_t2_DMSO", hbgLocus, ylim=c(0, 30) ) + tm + ylab("WIZ (day 2)"),
+    plotCovFromDF( covGSEHbF, "WIZ_t4_DMSO", hbgLocus, ylim=c(0, 30) ) + tm + ylab("WIZ (day 4)"),
+    wizPeaks@ggplot + ylab("WIZ binding") +
+    theme( axis.text.x=element_blank(), axis.line=element_blank(),
+          axis.ticks=element_blank(), axis.title.y.left=element_text(angle=0, size=11, hjust=1, vjust=0.5), plot.margin = unit(c(0,0.2,0,0.2), "lines")),
+    geneTracks@ggplot + theme( axis.text.x.bottom=element_text(size=12), axis.line.y=element_blank(), plot.margin = unit(c(-0.5,0.2,0,0.2), "lines")) + labs(x="Genome coordinates (chr11)"),
+    rel_heights=c(rep(0.5, 14), 0.6, 1),
+    ncol=1, align="v" )
+
+text <- rep( c("GSE43625", "GSE52924", "GSE150530", "GSE104676"), c(3, 2, 2, 4))
+space <- 0.052
+space2 <- 0.006
+for( tx in seq_along(text) ){
+    tgrob <- text_grob(text[tx], face = "italic", size=7)
+    mainPlot <- mainPlot +
+        draw_grob( tgrob, x=-0.335, y=0.49-(space*(tx - 1))-(space2*max(tx-2, 0)))
+}
+
+mainPlot
+
+```
+
+# R session information
+
+```{r}
+sessionInfo()
+```
